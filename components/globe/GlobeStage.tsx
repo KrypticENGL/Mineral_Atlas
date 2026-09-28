@@ -7,6 +7,7 @@ import { useAtlasStore } from "@/lib/store/atlas-store";
 import { cn } from "@/lib/utils";
 import { GlobeLoader } from "./GlobeLoader";
 import { LocationTooltip } from "./LocationTooltip";
+import { TopoBackdrop } from "./TopoBackdrop";
 
 // WebGL code (three, globe.gl) is split out of the main bundle and never SSR'd.
 const GlobeScene = dynamic(() => import("./GlobeScene"), { ssr: false, loading: () => <GlobeLoader /> });
@@ -129,6 +130,8 @@ export function GlobeStage() {
           aria-hidden
           className="breathe absolute -inset-x-[200px] inset-y-0 bg-[radial-gradient(ellipse_at_50%_46%,var(--atlas-glow-1)_0%,var(--atlas-glow-2)_42%,var(--atlas-ink)_75%)]"
         />
+        {/* Contour-line artwork; extends past the edges so the slides never expose a border. */}
+        <TopoBackdrop className="pointer-events-none absolute -inset-x-[200px] -inset-y-[30dvh] h-[calc(100%+60dvh)] w-[calc(100%+400px)] text-dim opacity-20" />
         {support === "pending" && <GlobeLoader />}
         {support === "supported" && (
           <SceneBoundary fallback={<Fallback />}>

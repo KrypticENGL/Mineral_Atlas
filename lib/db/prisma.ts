@@ -13,7 +13,9 @@ function createClient(): PrismaClient {
   if (!connectionString) {
     throw new Error("DATABASE_URL is not set. Copy .env.example to .env.");
   }
-  return new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
+  // pg waits forever for a connection by default; an unreachable database would
+  // otherwise hang builds (prerendering queries it) instead of failing.
+  return new PrismaClient({ adapter: new PrismaPg({ connectionString, connectionTimeoutMillis: 15_000 }) });
 }
 
 export const prisma: PrismaClient = globalForPrisma.prisma ?? createClient();
