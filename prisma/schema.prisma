@@ -1,0 +1,240 @@
+// Mineral Atlas — relational model for suppliers, minerals and structured pricing.
+// Every catalogue entity can be created/removed independently, so a future admin
+// UI or ingestion pipeline only needs straightforward CRUD against these tables.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Continent {
+  AFRICA
+  ASIA
+  EUROPE
+  MIDDLE_EAST
+  NORTH_AMERICA
+  SOUTH_AMERICA
+  OCEANIA
+}
+
+enum MineralCategory {
+  METALLIC
+  INDUSTRIAL
+  PRECIOUS
+  ENERGY
+  GEMSTONE
+  /// Manufactured industrial goods traded alongside minerals, e.g. steel drums.
+  PACKAGING
+}
+
+/// What the counterparty does in the trade.
+enum CounterpartyRole {
+  PRODUCER
+  MANUFACTURER
+  TRADER
+  BROKER
+  BUYER
+}
+
+/// Our assessment of dealing with the counterparty.
+enum RiskLevel {
+  LOW
+  MODERATE
+  HIGH
+  SCAM
+}
+
+enum Currency {
+  USD
+  EUR
+  GBP
+  INR
+  CNY
+  AUD
+  CAD
+  JPY
+}
+
+enum PriceUnit {
+  METRIC_TON
+  KILOGRAM
+  GRAM
+  POUND
+  OUNCE
+  CUBIC_METER
+  CARAT
+}
+
+/// ICC Incoterms 2020 — what the quoted price includes (freight, insurance, delivery point).
+enum Incoterm {
+  EXW
+  FCA
+  FAS
+  FOB
+  CFR
+  CIF
+  CPT
+  CIP
+  DAP
+  DPU
+  DDP
+}
+
+enum Availability {
+  AVAILABLE
+  LIMITED
+  ON_REQUEST
+  UNAVAILABLE
+}
+
+model Country {
+  id         String    @id @default(cuid())
+  name       String    @unique
+  /// ISO 3166-1 alpha-2, used in URLs and APIs.
+  code       String    @unique @db.Char(2)
+  /// ISO 3166-1 numeric — joins to the Natural Earth boundary asset used by the globe.
+  isoNumeric String    @unique @db.Char(3)
+  continent  Continent
+  latitude   Float
+  longitude  Float
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  regions   Region[]
+  suppliers Supplier[]
+
+  @@index([continent])
+}
+
+/// Sub-national area (state, province, mining district).
+model Region {
+  id        String @id @default(cuid())
+  countryId String
+  name      String
+
+  country   Country    @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  suppliers Supplier[]
+
+  @@unique([countryId, name])
+  @@index([countryId])
+}
+
+model Supplier {
+  id          String           @id @default(cuid())
+  name        String
+  slug        String           @unique
+  countryId   String
+  regionId    String?
+  city        String
+  latitude    Float
+  longitude   Float
+  website     String?
+  email       String?
+  phone       String?
+  /// Named sales contact at the supplier.
+  contactName String?
+  /// Postal address of the head office; further offices go in the description.
+  address     String?
+  description String
+  verified    Boolean          @default(false)
+  role        CounterpartyRole @default(TRADER)
+  riskLevel   RiskLevel        @default(MODERATE)
+  /// Due-diligence notes: red flags, status, how to engage.
+  assessment  String?
+  /// Where the record came from, e.g. a lead sheet name.
+  source      String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  country  Country           @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  region   Region?           @relation(fields: [regionId], references: [id], onDelete: SetNull)
+  minerals SupplierMineral[]
+  prices   MineralPrice[]
+
+  @@index([countryId])
+  @@index([regionId])
+  @@index([latitude, longitude])
+  @@index([name])
+  @@index([verified])
+  @@index([role])
+  @@index([riskLevel])
+}
+
+model Mineral {
+  id              String          @id @default(cuid())
+  name            String          @unique
+  slug            String          @unique
+  category        MineralCategory
+  chemicalFormula String?
+  description     String
+  uses            String[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  suppliers SupplierMineral[]
+  prices    MineralPrice[]
+
+  @@index([category])
+}
+
+/// A supplier's offer of a mineral (independent of its price history).
+model SupplierMineral {
+  id                 String     @id @default(cuid())
+  supplierId         String
+  mineralId          String
+  availableQuantity  Decimal?   @db.Decimal(16, 3)
+  quantityUnit       PriceUnit?
+  /// Commercial product description, e.g. "Aluminium ingot A7 99.7% / A8 99.8%".
+  productName        String?
+  /// Grades, dimensions, packing — free text as supplied by the seller.
+  specifications     String?
+  /// Stated monthly supply capacity range, in quantityUnit.
+  monthlyCapacityMin Decimal?   @db.Decimal(16, 3)
+  monthlyCapacityMax Decimal?   @db.Decimal(16, 3)
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  supplier Supplier       @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  mineral  Mineral        @relation(fields: [mineralId], references: [id], onDelete: Cascade)
+  prices   MineralPrice[]
+
+  @@unique([supplierId, mineralId])
+  @@index([mineralId])
+}
+
+/// Structured price record. The row with `validUntil = null` is the current quote;
+/// superseded quotes keep their `validUntil` and remain as history.
+model MineralPrice {
+  id                   String       @id @default(cuid())
+  supplierId           String
+  mineralId            String
+  price                Decimal      @db.Decimal(16, 4)
+  currency             Currency
+  unit                 PriceUnit
+  minimumOrderQuantity Decimal?     @db.Decimal(16, 3)
+  availability         Availability @default(AVAILABLE)
+  incoterm             Incoterm?
+  loadingPort          String?
+  paymentTerms         String?
+  /// Qualifiers on the price as quoted, e.g. "+ GST + freight" or "LME −20%".
+  priceNote            String?
+  validFrom            DateTime     @default(now())
+  validUntil           DateTime?
+  lastUpdated          DateTime     @default(now())
+  /// Provenance, e.g. "supplier-offer" for a quote received directly, or a feed id.
+  source               String       @default("supplier-offer")
+  externalRef          String?
+
+  supplier        Supplier        @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  mineral         Mineral         @relation(fields: [mineralId], references: [id], onDelete: Cascade)
+  supplierMineral SupplierMineral @relation(fields: [supplierId, mineralId], references: [supplierId, mineralId], onDelete: Cascade)
+
+  @@index([supplierId, validUntil])
+  @@index([mineralId, validUntil])
+  @@index([lastUpdated])
+  @@index([mineralId, currency, price])
+}

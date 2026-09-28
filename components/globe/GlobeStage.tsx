@@ -1,0 +1,145 @@
+"use client";
+
+import dynamic from "next/dynamic";
+import { Component, Suspense, useCallback, useEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
+import { MonitorX } from "lucide-react";
+import { useAtlasStore } from "@/lib/store/atlas-store";
+import { cn } from "@/lib/utils";
+import { GlobeLoader } from "./GlobeLoader";
+import { LocationTooltip } from "./LocationTooltip";
+
+// WebGL code (three, globe.gl) is split out of the main bundle and never SSR'd.
+const GlobeScene = dynamic(() => import("./GlobeScene"), { ssr: false, loading: () => <GlobeLoader /> });
+const FlatMapFallback = dynamic(() => import("./FlatMapFallback"), {
+  ssr: false,
+  loading: () => <GlobeLoader label="Preparing map" />,
+});
+
+type WebGLSupport = "pending" | "supported" | "unsupported";
+
+let detected: WebGLSupport | null = null;
+function detectWebGL(): WebGLSupport {
+  if (detected) return detected;
+  const forcedOff = new URLSearchParams(window.location.search).get("webgl") === "off";
+  let ok = false;
+  if (!forcedOff) {
+    try {
+      const canvas = document.createElement("canvas");
+      ok = Boolean(canvas.getContext("webgl2") ?? canvas.getContext("webgl"));
+    } catch {
+      ok = false;
+    }
+  }
+  detected = ok ? "supported" : "unsupported";
+  return detected;
+}
+const subscribeNoop = () => () => {};
+
+/** Falls back to the 2D map if the WebGL scene throws (e.g. context creation fails). */
+class SceneBoundary extends Component<{ fallback: ReactNode; children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  componentDidCatch(error: unknown) {
+    console.error("[globe] scene failed, falling back to 2D map", error);
+  }
+  render() {
+    return this.state.failed ? this.props.fallback : this.props.children;
+  }
+}
+
+function FallbackNotice() {
+  return (
+    <div className="pointer-events-none absolute inset-x-0 top-20 z-10 flex justify-center px-4 lg:top-24">
+      <p className="atlas-panel flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs text-stone">
+        <MonitorX className="size-3.5 text-ochre" aria-hidden />
+        3D globe unavailable (WebGL not supported) — showing a 2D map instead.
+      </p>
+    </div>
+  );
+}
+
+function Fallback() {
+  return (
+    <>
+      <FallbackNotice />
+      <Suspense fallback={<GlobeLoader label="Preparing map" />}>
+        <FlatMapFallback />
+      </Suspense>
+    </>
+  );
+}
+
+/**
+ * GlobeStage — decides between the WebGL globe and the 2D fallback, hosts the
+ * hover tooltip, and slides the scene aside when a detail panel opens.
+ */
+export function GlobeStage() {
+  const support = useSyncExternalStore(subscribeNoop, detectWebGL, () => "pending" as const);
+  const panelOpen = useAtlasStore((s) => s.selectedCountry !== null);
+  const docked = useAtlasStore((s) => s.overviewDocked);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+
+  // Pointer events can fire several times per frame; position the tooltip at
+  // most once per frame so layout is read (bounds, width) only once per frame.
+  const pointer = useRef<{ x: number; y: number; target: HTMLDivElement } | null>(null);
+  const frame = useRef<number | undefined>(undefined);
+  useEffect(() => () => cancelAnimationFrame(frame.current ?? 0), []);
+
+  const onPointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.pointerType !== "mouse") return;
+    pointer.current = { x: event.clientX, y: event.clientY, target: event.currentTarget };
+    if (frame.current !== undefined) return;
+    frame.current = requestAnimationFrame(() => {
+      frame.current = undefined;
+      const el = tooltipRef.current;
+      const p = pointer.current;
+      if (!el || !p) return;
+      const bounds = p.target.getBoundingClientRect();
+      const x = p.x - bounds.left + 18;
+      const y = p.y - bounds.top + 18;
+      const maxX = bounds.width - el.offsetWidth - 12;
+      el.style.transform = `translate3d(${Math.min(x, maxX)}px, ${y}px, 0)`;
+    });
+  }, []);
+
+  const clearHover = useAtlasStore((s) => s.hover);
+
+  return (
+    <div
+      className="absolute inset-0 overflow-hidden"
+      onPointerMove={onPointerMove}
+      onPointerLeave={() => clearHover(null)}
+    >
+      {/*
+        Desktop: centre the globe in the gap between the side panels.
+        Left edge is the intro card (24 + 320px) or the docked tab (56px);
+        right edge is the 420px column at 24px. Offset = (left − right) / 2.
+      */}
+      <div
+        className={cn(
+          "absolute inset-0 transition-transform duration-[1400ms] ease-atlas",
+          docked ? "lg:-translate-x-[194px]" : "lg:-translate-x-[50px]",
+          panelOpen && support === "supported" && "max-lg:-translate-y-[19vh]",
+        )}
+      >
+        {/* Cartographic backdrop: soft vignette, moves with the globe. */}
+        <div
+          aria-hidden
+          className="breathe absolute -inset-x-[200px] inset-y-0 bg-[radial-gradient(ellipse_at_50%_46%,var(--atlas-glow-1)_0%,var(--atlas-glow-2)_42%,var(--atlas-ink)_75%)]"
+        />
+        {support === "pending" && <GlobeLoader />}
+        {support === "supported" && (
+          <SceneBoundary fallback={<Fallback />}>
+            <Suspense fallback={<GlobeLoader label="Loading boundaries" />}>
+              <GlobeScene />
+            </Suspense>
+          </SceneBoundary>
+        )}
+        {support === "unsupported" && <Fallback />}
+      </div>
+      <LocationTooltip ref={tooltipRef} />
+    </div>
+  );
+}

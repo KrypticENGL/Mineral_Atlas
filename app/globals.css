@@ -1,0 +1,524 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Mineral Atlas — a single dark, earthy, cartographic theme.
+ * The atlas palette is exposed as Tailwind colours (bg-ink, text-cream, …) and
+ * mapped onto the shadcn tokens so primitives inherit the same identity.
+ */
+@theme inline {
+  --color-ink: var(--atlas-ink);
+  --color-ink-2: var(--atlas-ink-2);
+  --color-panel: var(--atlas-panel);
+  --color-raised: var(--atlas-raised);
+  --color-cream: var(--atlas-cream);
+  --color-beige: var(--atlas-beige);
+  --color-stone: var(--atlas-stone);
+  --color-dim: var(--atlas-dim);
+  --color-umber: var(--atlas-umber);
+  --color-moss: var(--atlas-moss);
+  --color-sage: var(--atlas-sage);
+  --color-lichen: var(--atlas-lichen);
+  --color-rust: var(--atlas-rust);
+  --color-ochre: var(--atlas-ochre);
+  --color-line: var(--atlas-line);
+  --color-line-strong: var(--atlas-line-strong);
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-serif: var(--font-instrument-serif), ui-serif, Georgia, serif;
+  --font-heading: var(--font-serif);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  --ease-atlas: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+:root {
+  color-scheme: dark;
+
+  /* Neutrals — dark mode. "cream" is always the primary foreground, "ink" the page. */
+  --atlas-ink: #0d0e0c;
+  --atlas-ink-2: #111310;
+  --atlas-panel: rgb(17 19 16 / 0.92);
+  --atlas-raised: #1a1d18;
+  --atlas-cream: #ebe5db;
+  --atlas-beige: #cec1b4;
+  --atlas-stone: #aea49a;
+  --atlas-dim: #857c73;
+  --atlas-umber: #5a524c;
+  --atlas-rust: #c27a5a;
+  --atlas-ochre: #c9a45c;
+  --atlas-line: rgb(235 229 219 / 0.09);
+  --atlas-line-strong: rgb(235 229 219 / 0.2);
+  --atlas-popover: #151713;
+  --atlas-hover: #22261f;
+  --atlas-shadow: rgb(0 0 0 / 0.8);
+  --atlas-glow-1: #1a1714;
+  --atlas-glow-2: #110f0d;
+  --glass-tint: rgb(17 19 16 / 0.42);
+  --glass-sheen: rgb(235 229 219 / 0.1);
+  --glass-rim: rgb(255 255 255 / 0.34);
+  --glass-rim-soft: rgb(255 255 255 / 0.06);
+  --label-halo: rgb(0 0 0 / 0.9);
+  --grain-opacity: 0.025;
+
+  /* Accent family (default: sand) — deep, mid and text-weight tones. */
+  --atlas-moss: #8c7a66;
+  --atlas-sage: #a8998a;
+  --atlas-lichen: #dccbb5;
+  --atlas-selection: rgb(206 193 180 / 0.35);
+
+  --background: var(--atlas-ink);
+  --foreground: var(--atlas-cream);
+  --card: var(--atlas-ink-2);
+  --card-foreground: var(--atlas-cream);
+  --popover: var(--atlas-popover);
+  --popover-foreground: var(--atlas-cream);
+  --primary: var(--atlas-cream);
+  --primary-foreground: var(--atlas-ink);
+  --secondary: var(--atlas-raised);
+  --secondary-foreground: var(--atlas-cream);
+  --muted: var(--atlas-raised);
+  --muted-foreground: var(--atlas-stone);
+  --accent: var(--atlas-hover);
+  --accent-foreground: var(--atlas-cream);
+  --destructive: var(--atlas-rust);
+  --border: var(--atlas-line);
+  --input: var(--atlas-line-strong);
+  --ring: var(--atlas-sage);
+  --radius: 0.75rem;
+}
+
+:root[data-mode="light"] {
+  color-scheme: light;
+  --atlas-ink: #f3efe7;
+  --atlas-ink-2: #faf7f1;
+  --atlas-panel: rgb(250 247 241 / 0.94);
+  --atlas-raised: #ebe5da;
+  --atlas-cream: #1f1c18;
+  --atlas-beige: #4a4239;
+  --atlas-stone: #675e54;
+  --atlas-dim: #8a8176;
+  --atlas-umber: #b9ae9f;
+  --atlas-rust: #a65a3a;
+  --atlas-ochre: #94702a;
+  --atlas-line: rgb(31 28 24 / 0.1);
+  --atlas-line-strong: rgb(31 28 24 / 0.22);
+  --atlas-popover: #fbf9f4;
+  --atlas-hover: #ece6db;
+  --atlas-shadow: rgb(60 48 36 / 0.28);
+  --atlas-glow-1: #faf7f1;
+  --atlas-glow-2: #f1ece3;
+  --glass-tint: rgb(255 253 249 / 0.5);
+  --glass-sheen: rgb(255 255 255 / 0.5);
+  --glass-rim: rgb(255 255 255 / 0.95);
+  --glass-rim-soft: rgb(255 255 255 / 0.25);
+  --label-halo: rgb(255 255 255 / 0.9);
+  --grain-opacity: 0.045;
+}
+
+/* Accent palettes. Light mode uses deeper tones so accent text stays legible. */
+:root[data-palette="forest"] {
+  --atlas-moss: #2b6956;
+  --atlas-sage: #667966;
+  --atlas-lichen: #8fb8a3;
+  --atlas-selection: rgb(43 105 86 / 0.6);
+  --atlas-glow-1: #161a15;
+  --atlas-glow-2: #0f110e;
+}
+:root[data-palette="ocean"] {
+  --atlas-moss: #2c5d7c;
+  --atlas-sage: #5f7f96;
+  --atlas-lichen: #9cc1dd;
+  --atlas-selection: rgb(44 93 124 / 0.6);
+  --atlas-glow-1: #141a20;
+  --atlas-glow-2: #0e1216;
+}
+:root[data-palette="ember"] {
+  --atlas-moss: #8a4a32;
+  --atlas-sage: #a8705a;
+  --atlas-lichen: #e8ae8e;
+  --atlas-selection: rgb(194 122 90 / 0.45);
+  --atlas-glow-1: #1d1512;
+  --atlas-glow-2: #130f0d;
+}
+:root[data-mode="light"][data-palette="sand"] {
+  --atlas-sage: #7a6a58;
+  --atlas-lichen: #6f5a45;
+  --atlas-selection: rgb(140 122 102 / 0.3);
+}
+:root[data-mode="light"][data-palette="forest"] {
+  --atlas-sage: #4f6e5e;
+  --atlas-lichen: #2a6450;
+  --atlas-selection: rgb(43 105 86 / 0.25);
+  --atlas-glow-1: #f7faf6;
+  --atlas-glow-2: #eaf0ea;
+}
+:root[data-mode="light"][data-palette="ocean"] {
+  --atlas-sage: #3f6784;
+  --atlas-lichen: #245577;
+  --atlas-selection: rgb(44 93 124 / 0.25);
+  --atlas-glow-1: #f6f9fc;
+  --atlas-glow-2: #e8eef4;
+}
+:root[data-mode="light"][data-palette="ember"] {
+  --atlas-sage: #8e5a45;
+  --atlas-lichen: #8f4428;
+  --atlas-selection: rgb(194 122 90 / 0.25);
+  --atlas-glow-1: #fcf7f3;
+  --atlas-glow-2: #f3e9e2;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-ink text-cream;
+    font-feature-settings: "ss01", "cv11";
+  }
+  ::selection {
+    background: var(--atlas-selection);
+    color: var(--atlas-cream);
+  }
+  :focus-visible {
+    outline: 1px solid var(--atlas-lichen);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* Small uppercase metadata label. */
+  .eyebrow {
+    @apply font-mono text-[10px] font-medium tracking-[0.18em] text-stone uppercase;
+  }
+
+  .atlas-panel {
+    background: var(--atlas-panel);
+    border: 1px solid var(--atlas-line);
+    border-radius: 1.125rem;
+    overflow: clip;
+    box-shadow:
+      0 1px 0 color-mix(in srgb, var(--atlas-cream) 3%, transparent) inset,
+      0 24px 60px -30px var(--atlas-shadow);
+  }
+
+  /*
+   * Liquid glass — frosted, saturated backdrop with a specular rim and a soft
+   * inner glow. Reserved for the small header pill: backdrop-filter re-samples
+   * the animating globe every frame, so keep the blurred area small.
+   */
+  .liquid-glass {
+    position: relative;
+    isolation: isolate;
+    background:
+      linear-gradient(180deg, var(--glass-sheen) 0%, transparent 45%, color-mix(in srgb, var(--glass-sheen) 50%, transparent) 100%),
+      var(--glass-tint);
+    backdrop-filter: blur(18px) saturate(170%) brightness(1.08);
+    -webkit-backdrop-filter: blur(18px) saturate(170%) brightness(1.08);
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, var(--glass-rim) 50%, transparent),
+      inset 0 -1px 0 var(--glass-rim-soft),
+      inset 0 0 18px color-mix(in srgb, var(--glass-sheen) 50%, transparent),
+      0 10px 34px -12px var(--atlas-shadow),
+      0 2px 6px -2px color-mix(in srgb, var(--atlas-shadow) 60%, transparent);
+  }
+  /* Gradient rim: bright along the top-left, fading around the curve. */
+  .liquid-glass::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    padding: 1px;
+    border-radius: inherit;
+    background: linear-gradient(135deg, var(--glass-rim), var(--glass-rim-soft) 38%, transparent 62%, color-mix(in srgb, var(--glass-rim) 50%, transparent));
+    mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+    pointer-events: none;
+  }
+  /* Hover: the pill lifts slightly and a specular sheen sweeps across it. */
+  .liquid-glass-interactive {
+    transition:
+      transform 500ms var(--ease-atlas),
+      box-shadow 500ms var(--ease-atlas);
+  }
+  .liquid-glass-interactive::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(105deg, transparent 38%, var(--glass-sheen) 50%, transparent 62%) no-repeat;
+    background-size: 260% 100%;
+    background-position: 130% 0;
+    opacity: 0;
+    transition:
+      background-position 1100ms var(--ease-atlas),
+      opacity 400ms var(--ease-atlas);
+  }
+  .liquid-glass-interactive:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      inset 0 1px 0 var(--glass-rim),
+      inset 0 -1px 0 var(--glass-rim-soft),
+      inset 0 0 22px var(--glass-sheen),
+      0 16px 40px -14px var(--atlas-shadow),
+      0 2px 8px -2px color-mix(in srgb, var(--atlas-shadow) 60%, transparent);
+  }
+  .liquid-glass-interactive:hover::after {
+    opacity: 1;
+    background-position: -30% 0;
+  }
+
+  /* Controls sitting inside the glass: lift on hover, press down on click. */
+  .glass-control {
+    background: color-mix(in srgb, var(--atlas-cream) 5%, transparent);
+    border: 1px solid color-mix(in srgb, var(--atlas-cream) 8%, transparent);
+    transition:
+      background-color 200ms,
+      border-color 200ms,
+      color 200ms,
+      transform 300ms var(--ease-atlas);
+  }
+  .glass-control:hover {
+    background: color-mix(in srgb, var(--atlas-cream) 10%, transparent);
+    border-color: color-mix(in srgb, var(--atlas-cream) 18%, transparent);
+    transform: translateY(-1px) scale(1.04);
+  }
+  .glass-control:active {
+    transform: scale(0.95);
+    transition-duration: 80ms;
+  }
+  /* The search field grows its border, not its size. */
+  .glass-control:has(input):hover {
+    transform: none;
+  }
+
+  .scroll-quiet {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--atlas-cream) 14%, transparent) transparent;
+  }
+
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Globe HTML labels (rendered by globe.gl's CSS2D layer). */
+  .globe-label {
+    pointer-events: none;
+    transition: opacity 400ms var(--ease-atlas);
+    white-space: nowrap;
+    transform: translate(10px, -50%);
+    font-family: var(--font-geist-mono), ui-monospace, monospace;
+    font-size: 9.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--atlas-cream) 62%, transparent);
+    text-shadow: 0 1px 2px var(--label-halo);
+  }
+  .globe-label[data-visible="false"],
+  .globe-label[data-collided="true"] {
+    opacity: 0;
+  }
+  .globe-label[data-selected="true"] {
+    color: var(--atlas-cream);
+  }
+  .globe-label[data-kind="city"] {
+    font-family: var(--font-geist-sans), ui-sans-serif, sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.02em;
+    text-transform: none;
+    color: var(--atlas-ink);
+    background: color-mix(in srgb, var(--atlas-cream) 92%, transparent);
+    padding: 1px 7px;
+    border-radius: 999px;
+  }
+  .globe-label .count {
+    color: var(--atlas-lichen);
+    margin-left: 6px;
+  }
+}
+
+/*
+ * Film grain — a static SVG noise tile. Plain alpha (no mix-blend-mode): a
+ * blended full-screen layer over the WebGL canvas would be re-blended every frame.
+ */
+.grain::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 60;
+  opacity: var(--grain-opacity);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.9 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+/*
+ * Motion — quiet, physical and brief. Everything animates transform/opacity
+ * only (blur is kept to small text), eases out on --ease-atlas, and staggers by
+ * a per-element --i index so panels assemble top to bottom rather than popping.
+ */
+@keyframes atlas-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+@keyframes atlas-focus-in {
+  from {
+    opacity: 0;
+    filter: blur(8px);
+    transform: translateY(0.18em);
+  }
+}
+@keyframes atlas-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-14px) scale(0.98);
+  }
+}
+@keyframes atlas-lift {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+}
+@keyframes atlas-grow-x {
+  from {
+    transform: scaleX(0);
+  }
+}
+@keyframes atlas-pop {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.15);
+  }
+}
+@keyframes atlas-shimmer {
+  from {
+    background-position: 150% 0;
+  }
+  to {
+    background-position: -50% 0;
+  }
+}
+@keyframes atlas-breathe {
+  50% {
+    opacity: 0.8;
+  }
+}
+
+@layer utilities {
+  /* Section entrance, staggered by style="--i: n". */
+  .rise {
+    animation: atlas-rise 650ms var(--ease-atlas) backwards;
+    animation-delay: calc(var(--i, 0) * 55ms + var(--rise-delay, 0ms));
+  }
+  /* Headline words come into focus one after another. */
+  .focus-in {
+    display: inline-block;
+    animation: atlas-focus-in 900ms var(--ease-atlas) backwards;
+    animation-delay: calc(var(--i, 0) * 70ms + var(--rise-delay, 0ms));
+  }
+  .drop-in {
+    animation: atlas-drop 800ms var(--ease-atlas) backwards;
+    animation-delay: var(--rise-delay, 0ms);
+  }
+  .lift-in {
+    animation: atlas-lift 800ms var(--ease-atlas) backwards;
+    animation-delay: var(--rise-delay, 0ms);
+  }
+  /* Same entrance for every direct child, in order. */
+  .rise-children > * {
+    animation: atlas-rise 650ms var(--ease-atlas) backwards;
+  }
+  .rise-children > :nth-child(2) { animation-delay: 45ms; }
+  .rise-children > :nth-child(3) { animation-delay: 90ms; }
+  .rise-children > :nth-child(4) { animation-delay: 135ms; }
+  .rise-children > :nth-child(5) { animation-delay: 180ms; }
+  .rise-children > :nth-child(6) { animation-delay: 225ms; }
+  .rise-children > :nth-child(7) { animation-delay: 270ms; }
+  .rise-children > :nth-child(n + 8) { animation-delay: 315ms; }
+  .grow-x {
+    transform-origin: left center;
+    animation: atlas-grow-x 900ms var(--ease-atlas) backwards;
+    animation-delay: calc(var(--i, 0) * 55ms + 150ms);
+  }
+  .pop {
+    animation: atlas-pop 420ms var(--ease-atlas) backwards;
+  }
+  /* Tactile press for anything clickable. */
+  .press {
+    transition-property: color, background-color, border-color, text-decoration-color, opacity, transform;
+    transition-duration: 200ms, 200ms, 200ms, 200ms, 200ms, 300ms;
+    transition-timing-function: var(--ease-atlas);
+  }
+  .press:active {
+    transform: scale(0.97);
+    transition-duration: 80ms;
+  }
+  .press-soft:active {
+    transform: scale(0.992);
+  }
+  .shimmer {
+    background: linear-gradient(
+        100deg,
+        transparent 30%,
+        color-mix(in srgb, var(--atlas-cream) 7%, transparent) 50%,
+        transparent 70%
+      )
+      no-repeat,
+      color-mix(in srgb, var(--atlas-cream) 5%, transparent);
+    background-size: 220% 100%, auto;
+    animation: atlas-shimmer 1.6s linear infinite;
+  }
+  .breathe {
+    animation: atlas-breathe 14s ease-in-out infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
