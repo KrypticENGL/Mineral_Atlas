@@ -121,7 +121,7 @@ export function GlobeStage() {
         className={cn(
           "absolute inset-0 transition-transform duration-[1400ms] ease-atlas",
           docked ? "lg:-translate-x-[194px]" : "lg:-translate-x-[50px]",
-          panelOpen && support === "supported" && "max-lg:-translate-y-[19vh]",
+          panelOpen && support === "supported" ? "max-lg:translate-y-[calc(30px-28dvh)]" : "max-lg:-translate-y-[58px]",
         )}
       >
         {/* Cartographic backdrop: soft vignette, moves with the globe. */}

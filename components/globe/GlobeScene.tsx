@@ -32,13 +32,14 @@ function altitudeScale(): number {
 /**
  * The part of the canvas not covered by panels. Desktop: between the docked
  * intro tab (56px) and the 420px right column, below the navbar and above the
- * footer. Mobile: the band above the bottom sheet.
+ * footer. Mobile: the band between the navbar and the bottom sheet.
  */
 function freeViewport(width: number, height: number): Viewport {
   if (window.innerWidth >= 1024) {
     return { height, freeWidth: Math.max(240, width - 56 - 444 - 48), freeHeight: Math.max(240, height - 76 - 64 - 32) };
   }
-  return { height, freeWidth: width - 32, freeHeight: height * 0.42 };
+  // Between the navbar (60px) and the half-open sheet (56%), less some breathing room.
+  return { height, freeWidth: width - 32, freeHeight: Math.max(160, height * 0.44 - 84) };
 }
 
 function useElementSize<T extends HTMLElement>() {
