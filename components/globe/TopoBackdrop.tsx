@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { whenIdle } from "@/lib/idle";
 
 /** Grid spacing (CSS px) the height field is sampled at. */
 const CELL = 6;
@@ -127,13 +128,15 @@ export function TopoBackdrop({ className }: { className?: string }) {
       window.clearTimeout(timer);
       timer = window.setTimeout(() => draw(canvas), 120);
     };
-    draw(canvas);
+    // The contour field is ~1.5M marching-squares steps: keep it off the hydration path.
+    const cancelFirst = whenIdle(() => draw(canvas), 2000);
     const resize = new ResizeObserver(redraw);
     resize.observe(canvas);
     // Theme switches change the stroke colour.
     const theme = new MutationObserver(redraw);
     theme.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "data-mode", "data-palette"] });
     return () => {
+      cancelFirst();
       window.clearTimeout(timer);
       resize.disconnect();
       theme.disconnect();

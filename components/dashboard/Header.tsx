@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Database, Info, Menu, Search as SearchIcon, ShieldCheck, SlidersHorizontal } from "lucide-react";
+import { Database, Info, LogOut, Menu, Search as SearchIcon, ShieldCheck, SlidersHorizontal } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useFiltered } from "@/components/atlas/AtlasProvider";
 import {
@@ -21,6 +21,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { logout } from "@/app/login/actions";
 import { useAtlasStore } from "@/lib/store/atlas-store";
 import { cn } from "@/lib/utils";
 import { GlobalSearch } from "./Search";
@@ -184,6 +185,9 @@ export function Header() {
                 <DropdownMenuItem className="rounded-lg" render={<Link href="/admin" />}>
                   <ShieldCheck /> Administration
                   <span className="ml-auto font-mono text-[9px] tracking-widest text-dim uppercase">Soon</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem className="rounded-lg" onClick={() => logout()}>
+                  <LogOut /> Sign out
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

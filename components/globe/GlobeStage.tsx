@@ -1,16 +1,47 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { Component, Suspense, useCallback, useEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
+import { Component, Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { MonitorX } from "lucide-react";
+import { bootReady } from "@/lib/boot";
+import { whenIdle } from "@/lib/idle";
 import { useAtlasStore } from "@/lib/store/atlas-store";
 import { cn } from "@/lib/utils";
 import { GlobeLoader } from "./GlobeLoader";
+import { loadCountryFeatures } from "./geo";
 import { LocationTooltip } from "./LocationTooltip";
 import { TopoBackdrop } from "./TopoBackdrop";
 
 // WebGL code (three, globe.gl) is split out of the main bundle and never SSR'd.
-const GlobeScene = dynamic(() => import("./GlobeScene"), { ssr: false, loading: () => <GlobeLoader /> });
+const importScene = () => import("./GlobeScene");
+const GlobeScene = dynamic(importScene, { ssr: false, loading: () => <GlobeLoader /> });
+
+// Start the two network dependencies immediately instead of in sequence
+// (chunk → boundaries fetch); the scene itself is mounted later, see useIdleGate.
+if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("webgl") !== "off") {
+  void importScene();
+  loadCountryFeatures().catch(() => {}); // the scene surfaces the error itself
+}
+
+/**
+ * True once the browser has painted the page shell and gone idle. Building the
+ * globe (WebGL context, ~180 polygon meshes) is the heaviest work on the page;
+ * doing it during hydration would delay the first paint and janks the intro.
+ */
+function useIdleGate(timeout = 1200) {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    let cancelIdle = () => {};
+    const frame = requestAnimationFrame(() => {
+      cancelIdle = whenIdle(() => setReady(true), timeout);
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      cancelIdle();
+    };
+  }, [timeout]);
+  return ready;
+}
 const FlatMapFallback = dynamic(() => import("./FlatMapFallback"), {
   ssr: false,
   loading: () => <GlobeLoader label="Preparing map" />,
@@ -62,6 +93,8 @@ function FallbackNotice() {
 }
 
 function Fallback() {
+  // No globe to wait for: let the boot screen go.
+  useEffect(() => bootReady(), []);
   return (
     <>
       <FallbackNotice />
@@ -78,6 +111,7 @@ function Fallback() {
  */
 export function GlobeStage() {
   const support = useSyncExternalStore(subscribeNoop, detectWebGL, () => "pending" as const);
+  const sceneReady = useIdleGate();
   const panelOpen = useAtlasStore((s) => s.selectedCountry !== null);
   const docked = useAtlasStore((s) => s.overviewDocked);
   const tooltipRef = useRef<HTMLDivElement>(null);
@@ -132,8 +166,8 @@ export function GlobeStage() {
         />
         {/* Contour-line artwork; extends past the edges so the slides never expose a border. */}
         <TopoBackdrop className="pointer-events-none absolute -inset-x-[200px] -inset-y-[30dvh] h-[calc(100%+60dvh)] w-[calc(100%+400px)] text-dim opacity-20" />
-        {support === "pending" && <GlobeLoader />}
-        {support === "supported" && (
+        {(support === "pending" || (support === "supported" && !sceneReady)) && <GlobeLoader />}
+        {support === "supported" && sceneReady && (
           <SceneBoundary fallback={<Fallback />}>
             <Suspense fallback={<GlobeLoader label="Loading boundaries" />}>
               <GlobeScene />

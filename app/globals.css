@@ -352,6 +352,10 @@
   .globe-label[data-collided="true"] {
     opacity: 0;
   }
+  /* Labels stay hidden during the intro glide (fewer per-frame DOM writes), then fade in. */
+  [data-intro] .globe-label {
+    opacity: 0;
+  }
   .globe-label[data-selected="true"] {
     color: var(--atlas-cream);
   }
@@ -521,4 +525,192 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/*
+ * Boot screen: a hammer drives a chisel into a rock and chips off mineral chunks.
+ * When loading finishes the rock swells and dissolves onto the page. Everything behind it is held still until it leaves, then plays its entrance.
+ */
+.boot-screen[data-phase="leaving"],
+.boot-screen[data-phase="fading"] {
+  pointer-events: none;
+}
+.boot-backdrop {
+  transition: opacity 600ms var(--ease-atlas);
+}
+.boot-screen[data-phase="fading"] .boot-backdrop {
+  opacity: 0;
+}
+.boot-glow {
+  background: radial-gradient(ellipse at 50% 46%, var(--atlas-glow-1) 0%, var(--atlas-glow-2) 42%, var(--atlas-ink) 75%);
+}
+.boot-content {
+  animation: atlas-focus-in 900ms var(--ease-atlas) backwards;
+}
+/* Leaving: tools and captions fade first, then the rock fades. */
+.rc-tools,
+.boot-caption {
+  transition: opacity 320ms ease-out;
+}
+.boot-screen:not([data-phase="boot"]) .rc-tools,
+.boot-screen:not([data-phase="boot"]) .boot-caption {
+  opacity: 0;
+}
+.rc-rock {
+  transition: opacity 420ms ease-out 100ms;
+}
+.boot-screen:not([data-phase="boot"]) .rc-rock {
+  opacity: 0;
+}
+.boot-title {
+  animation: atlas-focus-in 1200ms var(--ease-atlas) 300ms backwards;
+}
+.boot-bar {
+  position: relative;
+  width: 140px;
+  height: 1px;
+  overflow: hidden;
+  background: var(--atlas-line-strong);
+}
+.boot-bar::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 40%;
+  background: var(--atlas-cream);
+  animation: boot-slide 1.5s cubic-bezier(0.6, 0, 0.4, 1) infinite;
+}
+@keyframes boot-slide {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(350%); }
+}
+/* Hold the interface's entrance animations until the boot screen starts to leave. */
+body:has([data-boot-screen]:is([data-phase="boot"], [data-phase="leaving"])) main,
+body:has([data-boot-screen]:is([data-phase="boot"], [data-phase="leaving"])) main * {
+  animation-play-state: paused !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .boot-bar::after,
+  .rc-hammer,
+  .rc-chisel,
+  .rc-chunk,
+  .rc-spark,
+  .rc-clock,
+  .rc-rock-img {
+    animation: none;
+  }
+  .rc-hammer {
+    transform: rotate(-40deg);
+  }
+  .rc-spin {
+    animation: none;
+  }
+  .rc-chunk,
+  .rc-spark {
+    opacity: 0;
+  }
+}
+
+/* RockChisel: one CSS clock per swing (--T); the blow lands at 22%. */
+.rc-rock-img {
+  filter: invert(0.8);
+  animation: rc-shake 1.9s infinite;
+  transform-origin: 50% 70%;
+}
+.rc-clock {
+  animation: rc-tick 1.9s linear infinite;
+}
+.rc-steel {
+  fill: color-mix(in srgb, var(--atlas-cream) 78%, var(--atlas-ink));
+  stroke: var(--atlas-ink);
+  stroke-width: 0.8;
+  stroke-linejoin: round;
+}
+.rc-handle {
+  fill: color-mix(in srgb, var(--atlas-sage) 70%, var(--atlas-ink));
+  stroke: var(--atlas-ink);
+  stroke-width: 0.8;
+}
+.rc-shine {
+  stroke: var(--atlas-ink);
+  stroke-opacity: 0.35;
+  stroke-width: 1;
+  stroke-linecap: round;
+}
+.rc-hammer {
+  transform-origin: 0 0;
+  animation: rc-hammer 1.9s infinite;
+}
+.rc-chisel {
+  animation: rc-chisel 1.9s infinite;
+}
+.rc-spark {
+  transform-origin: 0 0;
+  opacity: 0;
+  animation: rc-spark 1.9s infinite;
+}
+.rc-spark-ray {
+  stroke: var(--atlas-cream);
+  stroke-width: 1.1;
+  stroke-linecap: round;
+}
+.rc-chunk {
+  transform-origin: 0 0;
+  opacity: 0;
+  animation: rc-chunk 1.9s infinite;
+}
+.rc-chunk-face {
+  fill: color-mix(in srgb, var(--mb-color) 26%, var(--atlas-ink));
+  stroke: var(--mb-color);
+  stroke-width: 0.7;
+  stroke-linejoin: round;
+}
+.rc-spin {
+  transform-origin: 0 0;
+  animation: rc-spin 1.9s infinite;
+}
+.rc-chunk-symbol {
+  font: 600 11px var(--font-geist-sans), ui-sans-serif, sans-serif;
+  fill: var(--atlas-cream);
+}
+@keyframes rc-tick {
+  to {
+    opacity: 1;
+  }
+}
+/* Raised → strike (22%) → small rebound → lifted again for the next blow. */
+@keyframes rc-hammer {
+  0% { transform: rotate(-40deg); animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.5); }
+  22% { transform: rotate(0deg); animation-timing-function: ease-out; }
+  27% { transform: rotate(-13deg); animation-timing-function: cubic-bezier(0.4, 0, 0.3, 1); }
+  66%, 100% { transform: rotate(-40deg); }
+}
+@keyframes rc-chisel {
+  0%, 21% { transform: translateY(0); }
+  23% { transform: translateY(3px); }
+  36%, 100% { transform: translateY(0); }
+}
+@keyframes rc-shake {
+  0%, 21%, 40%, 100% { transform: translate(0, 0) rotate(0deg); }
+  23% { transform: translate(-1.6px, 0.8px) rotate(-0.5deg); }
+  27% { transform: translate(1px, -0.5px) rotate(0.3deg); }
+  32% { transform: translate(-0.4px, 0.2px) rotate(0deg); }
+}
+@keyframes rc-spark {
+  0%, 21% { opacity: 0; transform: scale(0.4); }
+  23% { opacity: 1; transform: scale(0.8); }
+  36%, 100% { opacity: 0; transform: scale(1.7); }
+}
+/* Chips burst out, arc up, then fall and fade. --px/--py: peak; --dx/--dy: landing. */
+/* Only the rock face spins; the symbol stays upright. */
+@keyframes rc-spin {
+  0%, 21% { transform: rotate(0deg); animation-timing-function: cubic-bezier(0.2, 0.7, 0.4, 1); }
+  72%, 100% { transform: rotate(var(--rot)); }
+}
+@keyframes rc-chunk {
+  0%, 21% { opacity: 0; transform: translate(0, 0) scale(0.3); animation-timing-function: cubic-bezier(0.2, 0.7, 0.4, 1); }
+  24% { opacity: 1; }
+  40% { opacity: 1; transform: translate(var(--px), var(--py)) scale(1); animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.6); }
+  72% { opacity: 0.9; transform: translate(var(--dx), var(--dy)) scale(1); }
+  88%, 100% { opacity: 0; transform: translate(var(--dx), calc(var(--dy) + 14px)) scale(0.9); }
 }

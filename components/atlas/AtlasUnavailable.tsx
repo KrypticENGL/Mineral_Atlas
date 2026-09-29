@@ -1,10 +1,12 @@
 import { DatabaseZap } from "lucide-react";
+import { BootReady } from "@/components/atlas/BootScreen";
 import { BrandMark } from "@/components/dashboard/Header";
 
 /** Full-page state when the catalogue cannot be read (e.g. Postgres is down). */
 export function AtlasUnavailable({ onRetryHref = "/" }: { onRetryHref?: string }) {
   return (
     <main className="relative grid h-dvh w-full place-items-center overflow-hidden bg-ink px-6">
+      <BootReady />
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_46%,#161a15_0%,#0d0e0c_70%)]" />
       <div className="relative max-w-md text-center">
         <BrandMark className="mx-auto size-10 text-cream" />

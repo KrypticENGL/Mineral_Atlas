@@ -4,6 +4,7 @@ import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Globe, { type GlobeMethods } from "react-globe.gl";
 import { geoDistance } from "d3-geo";
 import { MeshPhongMaterial, Color } from "three";
+import { bootReady, onBootRevealed } from "@/lib/boot";
 import { cameraReadout } from "@/lib/atlas/camera-readout";
 import { useAtlas } from "@/components/atlas/AtlasProvider";
 import { OVERVIEW_ALTITUDE, useAtlasStore, type CameraTarget } from "@/lib/store/atlas-store";
@@ -91,10 +92,14 @@ export default function GlobeScene() {
     [colors],
   );
   useEffect(() => () => globeMaterial.dispose(), [globeMaterial]);
+  // On high-density screens MSAA adds little and costs a lot of fill rate.
   const rendererConfig = useMemo(
-    () => ({ antialias: true, alpha: true, powerPreference: "high-performance" as const }),
+    () => ({ antialias: window.devicePixelRatio < 2, alpha: true, powerPreference: "high-performance" as const }),
     [],
   );
+  // New polygons otherwise grow from zero altitude, rebuilding every country's
+  // geometry each frame just as the intro camera move starts. Enabled afterwards.
+  const [polygonTransitions, setPolygonTransitions] = useState(false);
 
   const move = useCallback(
     (target: CameraTarget) => {
@@ -139,20 +144,44 @@ export default function GlobeScene() {
     const state = useAtlasStore.getState();
     const scale = altitudeScale();
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const container = containerRef.current;
+    const settle = () => {
+      container?.removeAttribute("data-intro"); // labels fade in
+      container?.setAttribute("data-settled", ""); // drops will-change
+      setPolygonTransitions(true);
+    };
+
     if (state.camera || reduced) {
       controls.autoRotate = state.selectedCountry === null;
       globe.pointOfView({ ...INITIAL_VIEW, altitude: INITIAL_VIEW.altitude * scale }, 0);
       if (state.camera) move(state.camera);
+      bootReady();
+      onBootRevealed(() => {
+        container?.setAttribute("data-ready", "");
+        settle();
+      });
     } else {
-      // Autorotation would fight the tween; it starts once the camera settles.
+      // Park the camera at the intro's start position, then let two frames render
+      // while still invisible so shader compilation and first-frame uploads don't
+      // land inside the reveal. The fade and the camera glide then start together.
       globe.pointOfView({ lat: INTRO_FROM.lat, lng: INTRO_FROM.lng, altitude: INITIAL_VIEW.altitude * scale * INTRO_FROM.altitudeScale }, 0);
-      globe.pointOfView({ ...INITIAL_VIEW, altitude: INITIAL_VIEW.altitude * scale }, INTRO_MS);
-      resumeTimer.current = window.setTimeout(() => {
-        if (useAtlasStore.getState().selectedCountry === null) controls.autoRotate = true;
-      }, INTRO_MS);
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          bootReady();
+          // Wait for the boot screen to start leaving, so the intro plays in view.
+          onBootRevealed(() => {
+            container?.setAttribute("data-ready", "");
+            globe.pointOfView({ ...INITIAL_VIEW, altitude: INITIAL_VIEW.altitude * scale }, INTRO_MS);
+            // Not resumeTimer: user input clears that one, and settling must always happen.
+            window.setTimeout(settle, INTRO_MS);
+            // Autorotation would have fought the tween; it starts once the camera settles.
+            resumeTimer.current = window.setTimeout(() => {
+              if (useAtlasStore.getState().selectedCountry === null) controls.autoRotate = true;
+            }, INTRO_MS);
+          });
+        }),
+      );
     }
-    // Reveal the canvas (see the container's data-ready styles).
-    containerRef.current?.setAttribute("data-ready", "");
 
     // Pause on interaction; resume after a quiet period if nothing is selected.
     controls.addEventListener("start", () => {
@@ -241,7 +270,8 @@ export default function GlobeScene() {
   return (
     <div
       ref={containerRef}
-      className="absolute inset-0 scale-[0.96] opacity-0 transition-[opacity,transform] duration-[1600ms] ease-atlas data-ready:scale-100 data-ready:opacity-100"
+      data-intro=""
+      className="absolute inset-0 scale-[0.96] opacity-0 will-change-[opacity,transform] transition-[opacity,transform] duration-[1600ms] ease-atlas data-ready:scale-100 data-ready:opacity-100 data-settled:will-change-auto"
     >
       {size.width > 0 && (
         <Globe
@@ -260,6 +290,7 @@ export default function GlobeScene() {
           showPointerCursor={(type) => type === "polygon"}
           {...countryLayer}
           {...markers}
+          polygonsTransitionDuration={polygonTransitions ? 420 : 0}
           onPolygonClick={onPolygonClick}
           onGlobeClick={onGlobeClick}
         />

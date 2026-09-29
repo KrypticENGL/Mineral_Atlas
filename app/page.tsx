@@ -1,5 +1,6 @@
 import { connection } from "next/server";
 import { Suspense } from "react";
+import { BootScreen } from "@/components/atlas/BootScreen";
 import { AtlasApp } from "@/components/atlas/AtlasApp";
 import { AtlasSkeleton } from "@/components/atlas/AtlasSkeleton";
 import { AtlasUnavailable } from "@/components/atlas/AtlasUnavailable";
@@ -28,8 +29,11 @@ async function AtlasData() {
 
 export default function Home() {
   return (
-    <Suspense fallback={<AtlasSkeleton />}>
-      <AtlasData />
-    </Suspense>
+    <>
+      <BootScreen />
+      <Suspense fallback={<AtlasSkeleton />}>
+        <AtlasData />
+      </Suspense>
+    </>
   );
 }
