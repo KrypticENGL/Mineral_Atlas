@@ -12,6 +12,7 @@ import { MobileSheet } from "@/components/dashboard/MobileSheet";
 import { StatsBar } from "@/components/dashboard/StatsBar";
 import { GlobeStage } from "@/components/globe/GlobeStage";
 import { useAtlasStore } from "@/lib/store/atlas-store";
+import { useSettingsStore } from "@/lib/settings/settings-store";
 import { useThemeStore } from "@/lib/theme/theme-store";
 import { cn } from "@/lib/utils";
 import type { AtlasIndex } from "@/types/atlas";
@@ -139,6 +140,7 @@ function AtlasShell() {
   useAtlasUrlSync();
   // Adopt the theme the pre-paint script applied (the globe reads it from the store).
   useEffect(() => useThemeStore.getState().hydrate(), []);
+  useEffect(() => useSettingsStore.getState().hydrate(), []);
   useEscapeNavigation();
 
   return (

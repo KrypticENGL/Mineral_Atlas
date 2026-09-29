@@ -5,9 +5,11 @@ import Globe, { type GlobeMethods } from "react-globe.gl";
 import { geoDistance } from "d3-geo";
 import { MeshPhongMaterial, Color } from "three";
 import { bootReady, onBootRevealed } from "@/lib/boot";
+import { afterPaint } from "@/lib/idle";
 import { cameraReadout } from "@/lib/atlas/camera-readout";
 import { useAtlas } from "@/components/atlas/AtlasProvider";
 import { OVERVIEW_ALTITUDE, useAtlasStore, type CameraTarget } from "@/lib/store/atlas-store";
+import { QUALITY_PIXEL_RATIO, ROTATION_SPEED, useSettingsStore } from "@/lib/settings/settings-store";
 import { useMapPalette } from "@/lib/theme/theme-store";
 import { useCountryLayer } from "./CountryLayer";
 import { fitCountryView, type Viewport } from "./fit";
@@ -16,13 +18,19 @@ import { useLabelCollisions, useSupplierMarkers } from "./SupplierMarkers";
 
 const CAMERA_MS = 1600;
 const IDLE_RESUME_MS = 7000;
-const AUTO_ROTATE_SPEED = 0.32;
 const INITIAL_VIEW = { lat: 14, lng: 12, altitude: OVERVIEW_ALTITUDE };
 /** First load: the camera glides in from further out and slightly west. */
 const INTRO_MS = 2600;
 const INTRO_FROM = { lat: 22, lng: -38, altitudeScale: 1.7 };
 /** How close (in screen pixels) a click must land to a supplier dot to pick it. */
 const PICK_RADIUS_PX = 10;
+
+const prefersReducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const motionReduced = () => useSettingsStore.getState().reduceMotion || prefersReducedMotion();
+const cameraMs = () => (motionReduced() ? 0 : CAMERA_MS);
+/** Autorotation runs only when enabled in Settings and no country is selected. */
+const shouldRotate = () => useSettingsStore.getState().autoRotate && useAtlasStore.getState().selectedCountry === null;
+const pixelRatio = () => Math.min(window.devicePixelRatio, QUALITY_PIXEL_RATIO[useSettingsStore.getState().quality]);
 
 /** Narrow (portrait) viewports need the camera further out to fit the globe. */
 function altitudeScale(): number {
@@ -72,6 +80,11 @@ export default function GlobeScene() {
   const features = use(loadCountryFeatures());
   const { lookups } = useAtlas();
   const colors = useMapPalette();
+  const showAtmosphere = useSettingsStore((s) => s.showAtmosphere);
+  const showGraticules = useSettingsStore((s) => s.showGraticules);
+  const quality = useSettingsStore((s) => s.quality);
+  const autoRotate = useSettingsStore((s) => s.autoRotate);
+  const rotationSpeed = useSettingsStore((s) => s.rotationSpeed);
   const globeRef = useRef<GlobeMethods | undefined>(undefined);
   const [containerRef, size] = useElementSize<HTMLDivElement>();
   const resumeTimer = useRef<number | undefined>(undefined);
@@ -110,14 +123,14 @@ export default function GlobeScene() {
         const iso = lookups.countryByCode.get(target.fitCountry)?.isoNumeric;
         const feature = iso ? features.find((f) => f.id === iso) : undefined;
         if (feature) {
-          globe.pointOfView(fitCountryView(feature, freeViewport(container.clientWidth, container.clientHeight)), CAMERA_MS);
+          globe.pointOfView(fitCountryView(feature, freeViewport(container.clientWidth, container.clientHeight)), cameraMs());
           return;
         }
       }
       const current = globe.pointOfView();
       globe.pointOfView(
         { lat: target.lat ?? current.lat, lng: target.lng ?? current.lng, altitude: target.altitude * altitudeScale() },
-        CAMERA_MS,
+        cameraMs(),
       );
     },
     [containerRef, features, lookups],
@@ -125,17 +138,17 @@ export default function GlobeScene() {
 
   const setAutoRotate = useCallback((on: boolean) => {
     const controls = globeRef.current?.controls();
-    if (controls) controls.autoRotate = on;
+    if (controls) controls.autoRotate = on && useSettingsStore.getState().autoRotate;
   }, []);
 
   const handleReady = useCallback(() => {
     const globe = globeRef.current;
     if (!globe) return;
-    // A full-viewport canvas at 2× is 4× the fragments of 1×; 1.5 keeps edges crisp for far less GPU work.
-    globe.renderer().setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    // A full-viewport canvas at 2× is 4× the fragments of 1×; the default cap of 1.5 keeps edges crisp for far less GPU work.
+    globe.renderer().setPixelRatio(pixelRatio());
 
     const controls = globe.controls();
-    controls.autoRotateSpeed = AUTO_ROTATE_SPEED;
+    controls.autoRotateSpeed = ROTATION_SPEED[useSettingsStore.getState().rotationSpeed];
     controls.minDistance = 104; // altitude 0.04 — close enough for the smallest countries
     controls.maxDistance = 640;
     controls.zoomSpeed = 0.6;
@@ -143,7 +156,7 @@ export default function GlobeScene() {
 
     const state = useAtlasStore.getState();
     const scale = altitudeScale();
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reduced = motionReduced();
     const container = containerRef.current;
     const settle = () => {
       container?.removeAttribute("data-intro"); // labels fade in
@@ -152,7 +165,7 @@ export default function GlobeScene() {
     };
 
     if (state.camera || reduced) {
-      controls.autoRotate = state.selectedCountry === null;
+      controls.autoRotate = shouldRotate();
       globe.pointOfView({ ...INITIAL_VIEW, altitude: INITIAL_VIEW.altitude * scale }, 0);
       if (state.camera) move(state.camera);
       bootReady();
@@ -165,22 +178,20 @@ export default function GlobeScene() {
       // while still invisible so shader compilation and first-frame uploads don't
       // land inside the reveal. The fade and the camera glide then start together.
       globe.pointOfView({ lat: INTRO_FROM.lat, lng: INTRO_FROM.lng, altitude: INITIAL_VIEW.altitude * scale * INTRO_FROM.altitudeScale }, 0);
-      requestAnimationFrame(() =>
-        requestAnimationFrame(() => {
-          bootReady();
-          // Wait for the boot screen to start leaving, so the intro plays in view.
-          onBootRevealed(() => {
-            container?.setAttribute("data-ready", "");
-            globe.pointOfView({ ...INITIAL_VIEW, altitude: INITIAL_VIEW.altitude * scale }, INTRO_MS);
-            // Not resumeTimer: user input clears that one, and settling must always happen.
-            window.setTimeout(settle, INTRO_MS);
-            // Autorotation would have fought the tween; it starts once the camera settles.
-            resumeTimer.current = window.setTimeout(() => {
-              if (useAtlasStore.getState().selectedCountry === null) controls.autoRotate = true;
-            }, INTRO_MS);
-          });
-        }),
-      );
+      afterPaint(() => {
+        bootReady();
+        // Wait for the boot screen to start leaving, so the intro plays in view.
+        onBootRevealed(() => {
+          container?.setAttribute("data-ready", "");
+          globe.pointOfView({ ...INITIAL_VIEW, altitude: INITIAL_VIEW.altitude * scale }, INTRO_MS);
+          // Not resumeTimer: user input clears that one, and settling must always happen.
+          window.setTimeout(settle, INTRO_MS);
+          // Autorotation would have fought the tween; it starts once the camera settles.
+          resumeTimer.current = window.setTimeout(() => {
+            if (shouldRotate()) controls.autoRotate = true;
+          }, INTRO_MS);
+        });
+      });
     }
 
     // Pause on interaction; resume after a quiet period if nothing is selected.
@@ -191,7 +202,7 @@ export default function GlobeScene() {
     controls.addEventListener("end", () => {
       window.clearTimeout(resumeTimer.current);
       resumeTimer.current = window.setTimeout(() => {
-        if (useAtlasStore.getState().selectedCountry === null) controls.autoRotate = true;
+        if (shouldRotate()) controls.autoRotate = true;
       }, IDLE_RESUME_MS);
     });
   }, [containerRef, move]);
@@ -210,6 +221,17 @@ export default function GlobeScene() {
   );
 
   useEffect(() => () => window.clearTimeout(resumeTimer.current), []);
+
+  // Settings changes apply to the live globe (before it is ready, handleReady reads them).
+  useEffect(() => {
+    globeRef.current?.renderer().setPixelRatio(pixelRatio());
+  }, [quality]);
+  useEffect(() => {
+    const controls = globeRef.current?.controls();
+    if (!controls) return;
+    controls.autoRotateSpeed = ROTATION_SPEED[rotationSpeed];
+    controls.autoRotate = autoRotate && useAtlasStore.getState().selectedCountry === null;
+  }, [autoRotate, rotationSpeed]);
 
   // Stop rendering entirely while the tab is hidden.
   useEffect(() => {
@@ -281,8 +303,8 @@ export default function GlobeScene() {
           rendererConfig={rendererConfig}
           backgroundColor="rgba(0,0,0,0)"
           globeMaterial={globeMaterial}
-          showGraticules
-          showAtmosphere
+          showGraticules={showGraticules}
+          showAtmosphere={showAtmosphere}
           atmosphereColor={colors.atmosphere}
           atmosphereAltitude={0.17}
           onGlobeReady={handleReady}

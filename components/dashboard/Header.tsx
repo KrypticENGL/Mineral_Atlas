@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { Database, Info, LogOut, Menu, Search as SearchIcon, ShieldCheck, SlidersHorizontal } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Database, Info, LogOut, Menu, Search as SearchIcon, Settings, ShieldCheck, SlidersHorizontal } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useFiltered } from "@/components/atlas/AtlasProvider";
 import {
@@ -22,6 +22,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { logout } from "@/app/login/actions";
+import { SettingsDialog } from "@/components/settings/SettingsDialog";
+import { useSettingsStore } from "@/lib/settings/settings-store";
 import { useAtlasStore } from "@/lib/store/atlas-store";
 import { cn } from "@/lib/utils";
 import { GlobalSearch } from "./Search";
@@ -104,6 +106,34 @@ function InfoDialogs({ open, onClose }: { open: InfoDialog; onClose: () => void 
   );
 }
 
+/** Full page load on purpose: a client-side navigation would restore this page, stale, on the next sign-in. */
+function signOut() {
+  void logout().then(() => {
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- see above
+    window.location.href = "/login";
+  });
+}
+
+/** Signs out after the configured stretch without pointer, key, scroll or touch input. */
+function useAutoSignOut() {
+  const minutes = useSettingsStore((s) => s.autoSignOutMinutes);
+  useEffect(() => {
+    if (minutes <= 0) return;
+    let timer: number;
+    const arm = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(signOut, minutes * 60_000);
+    };
+    const events = ["pointerdown", "pointermove", "keydown", "wheel", "touchstart"] as const;
+    for (const e of events) window.addEventListener(e, arm, { passive: true });
+    arm();
+    return () => {
+      window.clearTimeout(timer);
+      for (const e of events) window.removeEventListener(e, arm);
+    };
+  }, [minutes]);
+}
+
 /** Header — identity, global search, filters and a small application menu. */
 export function Header() {
   const { activeFilters } = useFiltered();
@@ -112,6 +142,8 @@ export function Header() {
   const searchOpen = useAtlasStore((s) => s.searchOpen);
   const setSearchOpen = useAtlasStore((s) => s.setSearchOpen);
   const [dialog, setDialog] = useState<InfoDialog>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  useAutoSignOut();
 
   return (
     <>
@@ -182,11 +214,14 @@ export function Header() {
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem className="rounded-lg" onClick={() => setSettingsOpen(true)}>
+                  <Settings /> Settings
+                </DropdownMenuItem>
                 <DropdownMenuItem className="rounded-lg" render={<Link href="/admin" />}>
                   <ShieldCheck /> Administration
                   <span className="ml-auto font-mono text-[9px] tracking-widest text-dim uppercase">Soon</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem className="rounded-lg" onClick={() => logout()}>
+                <DropdownMenuItem className="rounded-lg" onClick={signOut}>
                   <LogOut /> Sign out
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -210,6 +245,7 @@ export function Header() {
       </AnimatePresence>
 
       <InfoDialogs open={dialog} onClose={() => setDialog(null)} />
+      <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </>
   );
 }

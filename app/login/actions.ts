@@ -26,7 +26,11 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
   redirect("/");
 }
 
+/**
+ * Clears the session. The caller must then do a full page load (not a client-side
+ * navigation): Next keeps the previous page alive while on /login and restores it,
+ * finished boot screen and torn-down globe included, when the user signs back in.
+ */
 export async function logout() {
   (await cookies()).delete(SESSION_COOKIE);
-  redirect("/login");
 }

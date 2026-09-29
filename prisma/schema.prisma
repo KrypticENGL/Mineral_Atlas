@@ -238,3 +238,11 @@ model MineralPrice {
   @@index([lastUpdated])
   @@index([mineralId, currency, price])
 }
+
+/// Small key/value store for app-level settings that must survive restarts,
+/// e.g. the sign-in password hash set from the Settings dialog.
+model AppSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}

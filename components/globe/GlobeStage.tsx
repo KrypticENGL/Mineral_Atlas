@@ -4,7 +4,8 @@ import dynamic from "next/dynamic";
 import { Component, Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { MonitorX } from "lucide-react";
 import { bootReady } from "@/lib/boot";
-import { whenIdle } from "@/lib/idle";
+import { afterPaint, whenIdle } from "@/lib/idle";
+import { useSettingsStore } from "@/lib/settings/settings-store";
 import { useAtlasStore } from "@/lib/store/atlas-store";
 import { cn } from "@/lib/utils";
 import { GlobeLoader } from "./GlobeLoader";
@@ -32,11 +33,11 @@ function useIdleGate(timeout = 1200) {
   const [ready, setReady] = useState(false);
   useEffect(() => {
     let cancelIdle = () => {};
-    const frame = requestAnimationFrame(() => {
+    const cancelPaint = afterPaint(() => {
       cancelIdle = whenIdle(() => setReady(true), timeout);
     });
     return () => {
-      cancelAnimationFrame(frame);
+      cancelPaint();
       cancelIdle();
     };
   }, [timeout]);
@@ -114,6 +115,8 @@ export function GlobeStage() {
   const sceneReady = useIdleGate();
   const panelOpen = useAtlasStore((s) => s.selectedCountry !== null);
   const docked = useAtlasStore((s) => s.overviewDocked);
+  const showBackdrop = useSettingsStore((s) => s.showBackdrop);
+  const hoverTooltip = useSettingsStore((s) => s.hoverTooltip);
   const tooltipRef = useRef<HTMLDivElement>(null);
 
   // Pointer events can fire several times per frame; position the tooltip at
@@ -165,7 +168,7 @@ export function GlobeStage() {
           className="breathe absolute -inset-x-[200px] inset-y-0 bg-[radial-gradient(ellipse_at_50%_46%,var(--atlas-glow-1)_0%,var(--atlas-glow-2)_42%,var(--atlas-ink)_75%)]"
         />
         {/* Contour-line artwork; extends past the edges so the slides never expose a border. */}
-        <TopoBackdrop className="pointer-events-none absolute -inset-x-[200px] -inset-y-[30dvh] h-[calc(100%+60dvh)] w-[calc(100%+400px)] text-dim opacity-20" />
+        {showBackdrop && <TopoBackdrop className="pointer-events-none absolute -inset-x-[200px] -inset-y-[30dvh] h-[calc(100%+60dvh)] w-[calc(100%+400px)] text-dim opacity-20" />}
         {(support === "pending" || (support === "supported" && !sceneReady)) && <GlobeLoader />}
         {support === "supported" && sceneReady && (
           <SceneBoundary fallback={<Fallback />}>
@@ -176,7 +179,7 @@ export function GlobeStage() {
         )}
         {support === "unsupported" && <Fallback />}
       </div>
-      <LocationTooltip ref={tooltipRef} />
+      {hoverTooltip && <LocationTooltip ref={tooltipRef} />}
     </div>
   );
 }
